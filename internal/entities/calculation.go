@@ -42,7 +42,7 @@ func findRestaurantsInSquareArea(coordinatesData CoordinatesData, request Calcul
 	var mu sync.Mutex
 	restaurantMap := make(map[string]float64)
 
-	wg.Add(1)
+	wg.Add(2)
 	go func() {
 		defer wg.Done()
 		possibleLatList = removeOutsideRange(coordinatesData.LatData, request.Lat, MaxSearchRadius)
@@ -53,7 +53,6 @@ func findRestaurantsInSquareArea(coordinatesData CoordinatesData, request Calcul
 		mu.Unlock()
 	}()
 
-	wg.Add(1)
 	go func() {
 		defer wg.Done()
 		possibleLongList = removeOutsideRange(coordinatesData.LongData, request.Long, MaxSearchRadius)

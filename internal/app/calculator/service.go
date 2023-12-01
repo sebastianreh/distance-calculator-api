@@ -2,6 +2,7 @@ package calculator
 
 import (
 	"context"
+	"strconv"
 	"sync"
 
 	"github.com/sebastianreh/distance-calculator-api/internal/config"
@@ -14,6 +15,7 @@ import (
 
 const (
 	serviceName = "calculator.service"
+	chunkSize   = 100000
 )
 
 type CalculatorService interface {
@@ -57,12 +59,71 @@ func (r *calculatorService) PreprocessRestaurants(ctx context.Context) error {
 	}
 
 	coordinatesData, timeRadiusMap := restaurants.PreprocessData()
-	err = r.repository.SetPreprocessData(ctx, coordinatesData, timeRadiusMap)
+
+	latChunks := processCoordinatesChunks(coordinatesData.LatData, LatDataSelector)
+	longChunks := processCoordinatesChunks(coordinatesData.LongData, LongDataSelector)
+	timeRadiusMapChunks := processTimeRadiusMapChunks(timeRadiusMap)
+
+	err = r.repository.SetCoordinatesIDData(ctx, latChunks, LatDataSelector)
+	if err != nil {
+		return err
+	}
+
+	err = r.repository.SetCoordinatesIDData(ctx, longChunks, LongDataSelector)
+	if err != nil {
+		return err
+	}
+
+	err = r.repository.SetTimeRadiusMapData(ctx, timeRadiusMapChunks)
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func processCoordinatesChunks(coordinateIDData []entities.CoordinateIDData, coordinateType string) map[string][]entities.CoordinateIDData {
+	coordinatesChunks := make(map[string][]entities.CoordinateIDData)
+
+	for i := 0; i < len(coordinateIDData); i += chunkSize {
+		end := i + chunkSize
+		if end > len(coordinateIDData) {
+			end = len(coordinateIDData)
+		}
+
+		key := "coordinates:" + coordinateType + strconv.Itoa(i/chunkSize)
+		coordinatesChunks[key] = append(coordinatesChunks[key], coordinateIDData[i:end]...)
+
+		if end == len(coordinateIDData) {
+			break
+		}
+	}
+
+	return coordinatesChunks
+}
+
+func processTimeRadiusMapChunks(trMap entities.TimeRadiusMap) map[string]entities.TimeRadiusMap {
+	chunkedMaps := make(map[string]entities.TimeRadiusMap)
+	counter := 0
+	chunkCounter := 0
+
+	for key, value := range trMap {
+		if counter%chunkSize == 0 {
+			chunkedMaps[timeRadiusKeyTemplate+strconv.Itoa(chunkCounter)] = make(entities.TimeRadiusMap)
+			chunkCounter++
+		}
+
+		currentChunkKey := timeRadiusKeyTemplate + strconv.Itoa(chunkCounter-1)
+		if chunkedMaps[currentChunkKey] == nil {
+			chunkedMaps[currentChunkKey] = make(entities.TimeRadiusMap)
+		}
+
+		chunkedMaps[currentChunkKey][key] = value
+
+		counter++
+	}
+
+	return chunkedMaps
 }
 
 func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request entities.CalculationRequest) ([]string, error) {
@@ -78,7 +139,7 @@ func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request 
 
 	go func() {
 		defer wg.Done()
-		latData, e := r.repository.GetCoordinateIDData(ctx, latDataSelector)
+		latData, e := r.repository.GetCoordinateIDData(ctx, LatDataSelector)
 		if e != nil {
 			errChan <- e
 			return
@@ -88,7 +149,7 @@ func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request 
 
 	go func() {
 		defer wg.Done()
-		longData, e := r.repository.GetCoordinateIDData(ctx, longDataSelector)
+		longData, e := r.repository.GetCoordinateIDData(ctx, LongDataSelector)
 		if e != nil {
 			errChan <- e
 			return
