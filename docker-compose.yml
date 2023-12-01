@@ -1,0 +1,32 @@
+version: "3.3"
+services:
+  httpserver:
+    networks:
+      - backend
+    image: distance-calculator-api
+    environment:
+      - REDIS_HOST=redis:6379
+    ports:
+      - "8000:8000"
+    depends_on:
+      - redis
+
+  redis:
+    networks:
+      - backend
+    image: 'bitnami/redis:latest'
+    environment:
+      - ALLOW_EMPTY_PASSWORD=yes
+    ports:
+      - "6379:6379"
+
+  cronjob:
+    networks:
+      - backend
+    image: preprocess-cron
+    depends_on:
+      - httpserver
+
+
+networks:
+  backend:

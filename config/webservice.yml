@@ -1,0 +1,24 @@
+service_name: devops-api
+metadata:
+  team: devops
+  source: golang
+type: webservice
+internal: true
+prefix: /devops
+container_port: 8000
+container_cpu: 256
+container_memory: 512
+service_desired_count: 3
+healthcheck_path: /ping
+dockerfile: Dockerfile
+environment:
+  - name: "PORT"
+    value: "8080"
+  - name: "DATABASE_HOST"
+    value: "localhost"
+secret:
+  - name: "API_KEY"
+    from: "/common/datadog-api-key"
+  - name: "API_SECRET"
+    from: "/common/datadog-api-key"
+  

@@ -1,0 +1,18 @@
+# Use a base image that includes cron, curl, and other necessary utilities
+FROM ubuntu:latest
+
+# Install curl if it's not already in the image
+RUN apt-get update && apt-get install -y curl cron
+
+# Copy the script into the container
+COPY files/preprocess_data.sh /preprocess_data.sh
+
+# Give execution rights on the cron job
+RUN chmod 0644 /preprocess_data.sh
+
+# Setup cron job
+# This cron job runs the script every 6 hours
+RUN (crontab -l 2>/dev/null; echo "0 */6 * * * /preprocess_data.sh") | crontab -
+
+# Start the cron daemon and run the script immediately
+CMD sh preprocess_data.sh && cron -f
