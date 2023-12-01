@@ -1,13 +1,10 @@
 package entities
 
 import (
-	"sync"
 	"time"
 
 	mathFormulas "github.com/sebastianreh/distance-calculator-api/pkg/math_formulas"
 )
-
-const MaxSearchRadius = 8
 
 type CalculationRequest struct {
 	Now  time.Time
@@ -22,117 +19,22 @@ type RestaurantIDLatLng struct {
 	DeliveryRadius float64 `json:"radius"`
 }
 
-func (request CalculationRequest) FindRestaurantsInRadius(data CoordinatesData, timeRadiusMap TimeRadiusMap) []string {
-	IDs := make([]string, 0)
-	restaurantsInSquareArea := findRestaurantsInSquareArea(data, request)
-	if len(restaurantsInSquareArea) < 1 {
-		return IDs
+type (
+	TimeRadiusMap map[string]timeRadiusSchedule
+
+	timeRadiusSchedule struct {
+		Open   int     `json:"open"`
+		Close  int     `json:"close"`
+		Radius float64 `json:"radius"`
 	}
+)
 
-	openRestaurants := findOpenRestaurants(request, timeRadiusMap, restaurantsInSquareArea)
-
+func (request CalculationRequest) FindRestaurantsInRadius(timeRadiusMap TimeRadiusMap,
+	restaurantInUserRadius []RestaurantIDLatLng) []string {
+	openRestaurants := findOpenRestaurants(request, timeRadiusMap, restaurantInUserRadius)
 	inRadius := findRestaurantsWithinDeliveryRadius(openRestaurants, request)
 
 	return inRadius
-}
-
-func findRestaurantsInSquareArea(coordinatesData CoordinatesData, request CalculationRequest) []RestaurantIDLatLng {
-	var wg sync.WaitGroup
-	var possibleLatList, possibleLongList []CoordinateIDData
-	var mu sync.Mutex
-	restaurantMap := make(map[string]float64)
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		possibleLatList = removeOutsideRange(coordinatesData.LatData, request.Lat, MaxSearchRadius)
-		mu.Lock()
-		for _, latCoord := range possibleLatList {
-			restaurantMap[latCoord.ID] = latCoord.Coordinate
-		}
-		mu.Unlock()
-	}()
-
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		possibleLongList = removeOutsideRange(coordinatesData.LongData, request.Long, MaxSearchRadius)
-	}()
-
-	wg.Wait()
-
-	var matchingRestaurants []RestaurantIDLatLng
-	for _, longCoord := range possibleLongList {
-		mu.Lock()
-		if lat, exists := restaurantMap[longCoord.ID]; exists {
-			matchingRestaurants = append(matchingRestaurants, RestaurantIDLatLng{
-				ID:   longCoord.ID,
-				Lat:  lat,
-				Long: longCoord.Coordinate,
-			})
-		}
-		mu.Unlock()
-	}
-
-	return matchingRestaurants
-}
-
-func removeOutsideRange(coordinateData []CoordinateIDData, targetLatitude, kmDistance float64) []CoordinateIDData {
-	lowerIndex, upperIndex := findIndexRangeWithinDistance(coordinateData, targetLatitude, kmDistance)
-
-	if lowerIndex == -1 || upperIndex == -1 {
-		// No points within the range, clear the slice
-		coordinateData = coordinateData[:0]
-		return coordinateData
-	}
-
-	// Keep only the elements within the range
-	return coordinateData[lowerIndex:upperIndex]
-}
-
-func findIndexRangeWithinDistance(coordinateData []CoordinateIDData, targetCoordinate, kmDistance float64) (lower int,
-	upper int) {
-	lower = lowerIndexBound(coordinateData, targetCoordinate, kmDistance)
-	upper = upperIndexBound(coordinateData, targetCoordinate, kmDistance)
-
-	if lower < 0 || upper > len(coordinateData) || lower >= upper {
-		// No points within distance kmDistance
-		return -1, -1
-	}
-
-	return lower, upper
-}
-
-func lowerIndexBound(data []CoordinateIDData, targetCoordinate, kmDistance float64) int {
-	degreeDistance := mathFormulas.KmToDegrees(kmDistance)
-	lowerBound := targetCoordinate - degreeDistance
-
-	low, high := 0, len(data)
-	for low < high {
-		mid := low + (high-low)/2
-		if data[mid].Coordinate < lowerBound {
-			low = mid + 1
-		} else {
-			high = mid
-		}
-	}
-	return low
-}
-
-func upperIndexBound(data []CoordinateIDData, targetCoordinate, kmDistance float64) int {
-	degreeDistance := mathFormulas.KmToDegrees(kmDistance)
-	upperBound := targetCoordinate + degreeDistance
-
-	low, high := 0, len(data)
-	for low < high {
-		mid := low + (high-low)/2
-		if data[mid].Coordinate <= upperBound {
-			low = mid + 1
-		} else {
-			high = mid
-		}
-	}
-	return low
 }
 
 func findOpenRestaurants(request CalculationRequest, timeRadiusMap TimeRadiusMap,

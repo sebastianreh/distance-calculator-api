@@ -2,7 +2,6 @@ package entities
 
 import (
 	"errors"
-	"sort"
 	"strconv"
 
 	"github.com/sebastianreh/distance-calculator-api/pkg/logger"
@@ -27,28 +26,6 @@ type Restaurant struct {
 }
 
 type Restaurants []Restaurant
-
-type (
-	TimeRadiusMap map[string]timeRadiusSchedule
-
-	timeRadiusSchedule struct {
-		Open   int     `json:"open"`
-		Close  int     `json:"close"`
-		Radius float64 `json:"radius"`
-	}
-)
-
-type (
-	CoordinatesData struct {
-		LatData  []CoordinateIDData
-		LongData []CoordinateIDData
-	}
-
-	CoordinateIDData struct {
-		Coordinate float64 `json:"coordinate"`
-		ID         string  `json:"id"`
-	}
-)
 
 func MapRecordsToRestaurants(records [][]string, logs logger.Logger) (Restaurants, error) {
 	var restaurants Restaurants
@@ -138,36 +115,9 @@ func processRestaurantRecord(record []string) (Restaurant, error) {
 	return restaurant, nil
 }
 
-func (restaurants Restaurants) PreprocessData() (CoordinatesData, TimeRadiusMap) {
-	latData := createAndSortCoordinateData(restaurants, func(r Restaurant) float64 { return r.Lat })
-	longData := createAndSortCoordinateData(restaurants, func(r Restaurant) float64 { return r.Long })
-	timeRadiusMap := createTimeRadiusMap(restaurants)
-
-	return CoordinatesData{
-		LatData:  latData,
-		LongData: longData,
-	}, timeRadiusMap
-}
-
-func createAndSortCoordinateData(restaurants []Restaurant, coordSelector func(Restaurant) float64) []CoordinateIDData {
-	var data []CoordinateIDData
-	for _, rest := range restaurants {
-		data = append(data, CoordinateIDData{
-			Coordinate: coordSelector(rest),
-			ID:         rest.ID,
-		})
-	}
-
-	sort.Slice(data, func(i, j int) bool {
-		return data[i].Coordinate < data[j].Coordinate
-	})
-
-	return data
-}
-
-func createTimeRadiusMap(restaurants []Restaurant) TimeRadiusMap {
+func (r Restaurants) CreateTimeRadiusMap() TimeRadiusMap {
 	timeScheduleMap := make(TimeRadiusMap)
-	for _, rest := range restaurants {
+	for _, rest := range r {
 		timeScheduleMap[rest.ID] = timeRadiusSchedule{
 			Open:   rest.Open,
 			Close:  rest.Close,

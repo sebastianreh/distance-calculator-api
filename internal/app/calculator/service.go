@@ -56,8 +56,13 @@ func (r *calculatorService) PreprocessRestaurants(ctx context.Context) error {
 		return err
 	}
 
-	coordinatesData, timeRadiusMap := restaurants.PreprocessData()
-	err = r.repository.SetPreprocessData(ctx, coordinatesData, timeRadiusMap)
+	err = r.repository.SetRestaurantGeoData(ctx, restaurants)
+	if err != nil {
+		return err
+	}
+
+	timeRadiusMap := restaurants.CreateTimeRadiusMap()
+	err = r.repository.SetTimeRadiusMapData(ctx, timeRadiusMap)
 	if err != nil {
 		return err
 	}
@@ -67,43 +72,33 @@ func (r *calculatorService) PreprocessRestaurants(ctx context.Context) error {
 
 func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request entities.CalculationRequest) ([]string, error) {
 	var timeRadiusMap entities.TimeRadiusMap
-	var coordinatesData entities.CoordinatesData
-	var err error
+	var restaurantInUserRadius []entities.RestaurantIDLatLng
 	const parallelProcesses = 3
 
 	var wg sync.WaitGroup
-	wg.Add(parallelProcesses)
 
 	errChan := make(chan error, parallelProcesses)
-
+	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		latData, e := r.repository.GetCoordinateIDData(ctx, latDataSelector)
-		if e != nil {
-			errChan <- e
-			return
-		}
-		coordinatesData.LatData = latData
-	}()
-
-	go func() {
-		defer wg.Done()
-		longData, e := r.repository.GetCoordinateIDData(ctx, longDataSelector)
-		if e != nil {
-			errChan <- e
-			return
-		}
-		coordinatesData.LongData = longData
-	}()
-
-	go func() {
-		defer wg.Done()
-		timeRadiusMapData, e := r.repository.GetTimeRadiusMapData(ctx)
-		if e != nil {
-			errChan <- e
+		timeRadiusMapData, err := r.repository.GetTimeRadiusMapData(ctx)
+		if err != nil {
+			errChan <- err
 			return
 		}
 		timeRadiusMap = timeRadiusMapData
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		restaurantInUserRadiusData, err := r.repository.GetRestaurantsInRadius(ctx,
+			request.Lat, request.Long, r.config.MaxDeliveryRadius)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		restaurantInUserRadius = restaurantInUserRadiusData
 	}()
 
 	wg.Wait()
@@ -115,7 +110,7 @@ func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request 
 		}
 	}
 
-	IDsInRadius := request.FindRestaurantsInRadius(coordinatesData, timeRadiusMap)
+	IDs := request.FindRestaurantsInRadius(timeRadiusMap, restaurantInUserRadius)
 
-	return IDsInRadius, err
+	return IDs, nil
 }

@@ -19,6 +19,8 @@ const (
 type Redis interface {
 	Set(ctx context.Context, key string, value any, ttl time.Duration) error
 	Get(ctx context.Context, key string) (string, error)
+	GeoAdd(ctx context.Context, key, id string, lat, long, radius float64) error
+	GeoSearch(ctx context.Context, key string, lat, long, radius float64) ([]string, error)
 }
 
 type redis struct {
@@ -72,6 +74,39 @@ func (r *redis) Get(ctx context.Context, key string) (string, error) {
 	status := r.client.Get(ctx, key)
 	if status.Err() != nil && status.Err() != rd.Nil {
 		return emptyString, status.Err()
+	}
+
+	return status.Val(), nil
+}
+
+func (r *redis) GeoAdd(ctx context.Context, key, id string, lat, long, radius float64) error {
+	geoLocation := rd.GeoLocation{
+		Name:      fmt.Sprintf("%s-%f-%f-%f", id, lat, long, radius),
+		Longitude: long,
+		Latitude:  lat,
+		Dist:      0,
+		GeoHash:   0,
+	}
+
+	status := r.client.GeoAdd(ctx, key, &geoLocation)
+
+	if status.Err() != nil {
+		return status.Err()
+	}
+
+	return nil
+}
+
+func (r *redis) GeoSearch(ctx context.Context, key string, lat, long, radius float64) ([]string, error) {
+	geoSearch := rd.GeoSearchQuery{
+		Longitude:  long,
+		Latitude:   lat,
+		Radius:     radius,
+		RadiusUnit: "km",
+	}
+	status := r.client.GeoSearch(ctx, key, &geoSearch)
+	if status.Err() != nil && status.Err() != rd.Nil {
+		return []string{}, status.Err()
 	}
 
 	return status.Val(), nil

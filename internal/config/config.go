@@ -14,6 +14,7 @@ type (
 		Redis          struct {
 			Host string `envconfig:"REDIS_HOST" default:"127.0.0.1:6379"`
 		}
+		MaxDeliveryRadius float64 `envconfig:"MAX_DELIVERY_RADIUS" default:"6"`
 	}
 )
 
