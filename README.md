@@ -1,89 +1,93 @@
-# Coneckta Golang Template
+# Distance Calculator API
 
+## Overview
 
-Project name is a `<utility/tool/feature>` that allows `<insert_target_audience>` to do `<action/task_it_does>`.
+The Distance Calculator API is designed to provide real-time information about nearby restaurant availability based on the user's location. It processes user location data (latitude and longitude) and returns a list of restaurant IDs that are capable of delivering orders to the user's location at the time of the query.
 
-Additional line of information text about what the project does. Your introduction should be around 2 or 3 sentences. Don't go overboard, people won't read it.
+---
+## Key Features
 
-## Table of Contents
+- **Real-Time Availability**: Responds to user location queries in real time.
+- **Location-Based Filtering**: Uses the user's latitude and longitude to find nearby restaurants.
+- **Delivery Range Consideration**: Takes into account each restaurant's delivery radius and operational hours.
+- **List of Deliverable Restaurants**: Returns a list of restaurant IDs that can deliver to the user's current location.
 
-- [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [Quickstart](#quickstart)
-- [Contributing](#contributing)
-- [Further reading / Useful links](#further-reading--useful-links)
+---
+## Data Source
 
-## Prerequisites
+The information about the restaurants is stored in a CSV file available at a specified URL. The CSV file is refreshed every 6 hours, there is a cronjob that refreshes the data source at this interval. The CSV file includes the following columns:
 
-Before you begin, ensure you have met the following requirements:
-* You have installed the latest version of `<coding_language/dependency/requirement_1>`
-* You have a `<Windows/Linux/Mac>` machine. State which OS is supported/which is not.
-* You have read `<guide/link/documentation_related_to_project>`.
+- Restaurant ID
+- Latitude and Longitude of the Restaurant
+- Delivery Radius
+- Operational Hours
+- Restaurant Raiting
 
-## Installation
+---
+## Endpoint Description
 
-To install <project_name>, follow these steps:
+- `/calculate`: Accepts `GET` requests with parameters `lat` (latitude) and `long` (longitude) to calculate and return a list of restaurant IDs available for delivery to the specified location.
+- `/preprocess`: A `POST` request endpoint that processes the CSV file to update the list of restaurants in the system.
 
-```bash
- eval `ssh-agent`
+---
+## Usage
+
+1. **Preprocessing Data**: First, the `/preprocess` endpoint should be called to process and load restaurant data from the CSV file.
+2. **Querying Available Restaurants**: Users can then make requests to the `/calculate` endpoint with their latitude and longitude to receive a list of available restaurant IDs.
+---
+
+## Distance Calculator Api Setup Guide
+
+This README provides a step-by-step guide to set up and run the distance-calculator-api project.
+
+### Prerequisites
+
+Before starting, ensure you have the following installed:
+
+- Docker and Docker Compose
+- Go (v1.19)
+
+### Step-by-Step Guide
+
+1. **Build the docker images**:
+
+   This step will create the docker images both for the http service and cronjob.
+   
+   Run: `make build-server-image && make build-cron-image`
+2. **Start Redis, Http Server and CronJob on Docker-compose**:
+
+   This step will run docker-compose.yml file, starting redis, the http server and cronjob
+
+   Run: `make start-compose`
+3. **Shut Down the Services (Optional)**:
+   
+   To shut down the project and it's dependencies, use this command: 
+   
+   Run: `make down-compose`
+
+---
+## Example
+
+### Request:
+```http
+GET /calculate/restaurants?lat=40.7128&long=74.0060
 ```
 
-```bash
- ssh-add
+### Response:
+```json
+{
+  "restaurant_ids": ["id1", "id2", "id3", ...]
+}
 ```
 
-```bash
-DOCKER_BUILDKIT=1 docker build --ssh default  --tag <image-name> .
-```
+---
+### Benchmarks:
 
-## Using <project_name>
+You can find benchmarks made with Postman in the directory `files/benchmarks`
 
-To use <project_name>, follow these steps:
+---
+### Test
 
-```bash
-docker run -p 8000:8000 <image-name> 
-```
+In order to run the server tests, use this **command**: `make test`
 
-To run Unit Test
-
-```bash
- docker run <image-name> sh -c 'go benchmark -v ./...'
- ```
-
-Add run commands and examples you think users will find useful. Provide an options reference for bonus points!
-
-## Quickstart
-
-To use <project_name>, follow these steps:
-
-```
-<usage_example>
-```
-
-Add run commands and examples you think users will find useful. Provide an options reference for bonus points!
-
-## Contributing
-
-To contribute to <project_name>, follow these steps:
-
-1. Fork this repository.
-2. Create a branch: `git checkout -b <branch_name>`.
-3. Make your changes and commit them: `git commit -m '<commit_message>'`
-4. Push to the original branch: `git push origin <project_name>/<location>`
-5. Create the pull request.
-
-Alternatively see the GitHub documentation on [creating a pull request](https://help.github.com/en/github/collaborating-with-issues-and-pull-requests/creating-a-pull-request).
-
-## Further reading / Useful links
-
-* Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-* Lorem ipsum dolor sit amet, consectetur adipiscing elit.
-
-## Contact
-
-If you want to contact me you can reach me at <miguel.cuartin@conekta.com>.
-
-## License
-<!--- If you're not sure which open license to use see https://choosealicense.com/--->
-
-This project uses the following license: [<license_name>](<link>).
+(There are only unit tests made for the calculator handler to show the testing style and framework that should be used)

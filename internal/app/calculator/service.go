@@ -17,7 +17,7 @@ const (
 )
 
 type CalculatorService interface {
-	CalculateDeliveryRange(ctx context.Context, request entities.CalculationRequest) ([]string, error)
+	CalculateDeliveryRange(ctx context.Context, request entities.CalculationRequest) (entities.CalculationResponse, error)
 	PreprocessRestaurants(ctx context.Context) error
 }
 
@@ -70,7 +70,9 @@ func (r *calculatorService) PreprocessRestaurants(ctx context.Context) error {
 	return nil
 }
 
-func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request entities.CalculationRequest) ([]string, error) {
+func (r *calculatorService) CalculateDeliveryRange(ctx context.Context,
+	request entities.CalculationRequest) (entities.CalculationResponse, error) {
+	var response entities.CalculationResponse
 	var timeRadiusMap entities.TimeRadiusMap
 	var restaurantInUserRadius []entities.RestaurantIDLatLng
 	const parallelProcesses = 3
@@ -106,11 +108,11 @@ func (r *calculatorService) CalculateDeliveryRange(ctx context.Context, request 
 
 	for e := range errChan {
 		if e != nil {
-			return nil, e
+			return response, e
 		}
 	}
 
-	IDs := request.FindRestaurantsInRadius(timeRadiusMap, restaurantInUserRadius)
+	response.RestaurantIDs = request.FindRestaurantsInRadius(timeRadiusMap, restaurantInUserRadius)
 
-	return IDs, nil
+	return response, nil
 }

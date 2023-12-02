@@ -100,7 +100,7 @@ linters:
     - varcheck
     - whitespace
 issues:
-  # Excluding configuration per-path, per-linter, per-text and per-source
+  # Excluding configuration per-path, per-linter, per-test and per-source
   exclude-rules:
     - path: _test\.go
       linters:
