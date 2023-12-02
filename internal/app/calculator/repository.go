@@ -20,7 +20,7 @@ const (
 	repositoryName         = "calculator.repository"
 	timeRadiusMapKey       = "restaurants:time_radius_map"
 	restaurantsGeoDataKey  = "restaurants:geodata"
-	InactiveTimeTTL        = time.Duration(6)*time.Hour + time.Duration(30)*time.Minute
+	InactiveTimeTTL        = time.Duration(12)*time.Hour + time.Duration(30)*time.Minute
 	invalidLatLongRedisErr = "ERR invalid longitude,latitude pair"
 	keySeparator           = "-"
 	keyParts               = 4

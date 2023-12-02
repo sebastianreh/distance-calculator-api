@@ -12,6 +12,10 @@ type CalculationRequest struct {
 	Long float64 `query:"long"`
 }
 
+type CalculationResponse struct {
+	RestaurantIDs []string `json:"restaurant_ids"`
+}
+
 type RestaurantIDLatLng struct {
 	ID             string  `json:"id"`
 	Lat            float64 `json:"lat"`
@@ -63,7 +67,7 @@ func findOpenRestaurants(request CalculationRequest, timeRadiusMap TimeRadiusMap
 }
 
 func findRestaurantsWithinDeliveryRadius(restaurants []RestaurantIDLatLng, request CalculationRequest) []string {
-	var withinDeliveryRadius []string
+	withinDeliveryRadius := make([]string, 0)
 
 	for _, restaurant := range restaurants {
 		distance := mathFormulas.Haversine(request.Lat, request.Long, restaurant.Lat, restaurant.Long)

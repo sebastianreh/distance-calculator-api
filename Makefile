@@ -24,3 +24,9 @@ build-server-image:
 
 build-cron-image:
 	 DOCKER_BUILDKIT=1  docker build -f DockerfileCron --force-rm -t preprocess-cron --no-cache .
+
+start-compose:
+	docker-compose up -d
+
+down-compose:
+	docker-compose down
